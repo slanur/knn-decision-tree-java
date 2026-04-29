@@ -1,9 +1,9 @@
 package classifier;
 
-import model.UserRecord;
+import model.ProcessedRecord;
 import java.util.List;
 
 public interface IClassifier {
-    void train(List<UserRecord> trainingData);
-    String predict(UserRecord user);
+    void train(List<ProcessedRecord> trainingData);
+    String predict(ProcessedRecord record);
 }
