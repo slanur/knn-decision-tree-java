@@ -1,10 +1,11 @@
 /Users/silanurcandir/Desktop/musteriTahmin/src/Main.java
+/Users/silanurcandir/Desktop/musteriTahmin/src/WebServer.java
 /Users/silanurcandir/Desktop/musteriTahmin/src/classifier/BaseAlgorithm.java
 /Users/silanurcandir/Desktop/musteriTahmin/src/classifier/DecisionTreeClassifier.java
 /Users/silanurcandir/Desktop/musteriTahmin/src/classifier/IClassifier.java
 /Users/silanurcandir/Desktop/musteriTahmin/src/classifier/KNNClassifier.java
 /Users/silanurcandir/Desktop/musteriTahmin/src/evaluation/Evaluator.java
 /Users/silanurcandir/Desktop/musteriTahmin/src/io/DataLoader.java
+/Users/silanurcandir/Desktop/musteriTahmin/src/model/ProcessedRecord.java
 /Users/silanurcandir/Desktop/musteriTahmin/src/model/UserRecord.java
 /Users/silanurcandir/Desktop/musteriTahmin/src/preprocessing/PreProcessor.java
-/Users/silanurcandir/Desktop/musteriTahmin/src/preprocessing/ProcessedRecord.java

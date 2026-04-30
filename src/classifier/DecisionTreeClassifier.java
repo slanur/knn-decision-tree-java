@@ -1,190 +1,181 @@
 package classifier;
 
-import model.UserRecord;
-import java.util.*;
+import model.ProcessedRecord;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class DecisionTreeClassifier extends BaseAlgorithm {
 
-    private Node root;
-    private int maxDepth = 10;
+    private int maxDerinlik;
+    private Node kok;
 
-    // ── İç sınıf: Ağaç düğümü ─────────────────────────────────────────
+    public DecisionTreeClassifier(int maxDerinlik) {
+        this.maxDerinlik = maxDerinlik;
+    }
+
+    // ── Node: Ağacın her düğümü ───────────────────────────────────────────
     private static class Node {
-        String feature;       // Hangi özelliğe göre bölünüyor
-        double threshold;     // Sayısal özellikler için eşik değeri
-        String leafLabel;     // Yaprak düğümse tahmin edilen kategori
-        Node left;
-        Node right;
+        boolean yaprakMi;
+        String kategori;      // Yaprak düğümde kategori
+        int ozellikIndex;     // Hangi özelliğe göre bölünüyor (0=gender, 1=lineNet, 2=brand)
+        double esik;          // Bölme eşiği
+        Node solDal;          // esik altı
+        Node sagDal;          // esik üstü
 
-        boolean isLeaf() { return leafLabel != null; }
-    }
-
-    // ── train: Ağacı eğitim verisiyle kur ────────────────────────────
-    @Override
-    public void train(List<UserRecord> trainingData) {
-        root = buildTree(trainingData, 0);
-    }
-
-    // ── predict: Tek kayıt için tahmin ───────────────────────────────
-    @Override
-    public String predict(UserRecord user) {
-        return traverse(root, user);
-    }
-
-    // ── Ağacı recursive olarak inşa et ───────────────────────────────
-    private Node buildTree(List<UserRecord> data, int depth) {
-        Node node = new Node();
-
-        // Durdurma koşulları
-        if (data.isEmpty()) {
-            node.leafLabel = "Unknown";
-            return node;
+        // Yaprak düğüm
+        Node(String kategori) {
+            this.yaprakMi = true;
+            this.kategori = kategori;
         }
-        if (depth >= maxDepth || allSameCategory(data)) {
-            node.leafLabel = majorityClass(data);
-            return node;
+
+        // İç düğüm
+        Node(int ozellikIndex, double esik) {
+            this.yaprakMi     = false;
+            this.ozellikIndex = ozellikIndex;
+            this.esik         = esik;
+        }
+    }
+
+    // ── Train ─────────────────────────────────────────────────────────────
+    @Override
+    public void train(List<ProcessedRecord> trainingData) {
+        this.kok = agacOlustur(trainingData, 0);
+        System.out.println("Decision Tree eğitildi. Eğitim verisi: " + trainingData.size() + " kayıt");
+    }
+
+    // ── Predict ───────────────────────────────────────────────────────────
+    @Override
+    public String predict(ProcessedRecord kayit) {
+        return dugumTahmin(kok, kayit);
+    }
+
+    private String dugumTahmin(Node dugum, ProcessedRecord kayit) {
+        if (dugum.yaprakMi) return dugum.kategori;
+
+        double deger = ozellikAl(kayit, dugum.ozellikIndex);
+        if (deger <= dugum.esik) {
+            return dugumTahmin(dugum.solDal, kayit);
+        } else {
+            return dugumTahmin(dugum.sagDal, kayit);
+        }
+    }
+
+    // ── Ağaç Oluşturma (Recursive) ────────────────────────────────────────
+    private Node agacOlustur(List<ProcessedRecord> veri, int derinlik) {
+
+        // Durum 1: Veri boşsa veya max derinliğe ulaşıldıysa yaprak yap
+        if (veri.isEmpty() || derinlik >= maxDerinlik) {
+            return new Node(enCokTekrarlanan(veri));
+        }
+
+        // Durum 2: Tüm kayıtlar aynı kategorideyse yaprak yap
+        if (hepsiAyniKategori(veri)) {
+            return new Node(veri.get(0).getCategory());
         }
 
         // En iyi bölmeyi bul
-        BestSplit best = findBestSplit(data);
-        if (best == null) {
-            node.leafLabel = majorityClass(data);
-            return node;
+        int enIyiOzellik = -1;
+        double enIyiEsik  = 0;
+        double enIyiGini  = Double.MAX_VALUE;
+
+        for (int ozellik = 0; ozellik < 3; ozellik++) {
+            for (ProcessedRecord kayit : veri) {
+                double esik = ozellikAl(kayit, ozellik);
+                double gini = giniHesapla(veri, ozellik, esik);
+                if (gini < enIyiGini) {
+                    enIyiGini    = gini;
+                    enIyiOzellik = ozellik;
+                    enIyiEsik    = esik;
+                }
+            }
         }
 
-        node.feature   = best.feature;
-        node.threshold = best.threshold;
-
-        List<UserRecord> leftData  = new ArrayList<>();
-        List<UserRecord> rightData = new ArrayList<>();
-
-        for (UserRecord r : data) {
-            if (getFeatureValue(r, best.feature) <= best.threshold) {
-                leftData.add(r);
+        // Veriyi böl
+        List<ProcessedRecord> sol = new ArrayList<>();
+        List<ProcessedRecord> sag = new ArrayList<>();
+        for (ProcessedRecord kayit : veri) {
+            if (ozellikAl(kayit, enIyiOzellik) <= enIyiEsik) {
+                sol.add(kayit);
             } else {
-                rightData.add(r);
+                sag.add(kayit);
             }
         }
 
-        // Bölme anlamsızsa yaprak yap
-        if (leftData.isEmpty() || rightData.isEmpty()) {
-            node.leafLabel = majorityClass(data);
-            return node;
+        // Bölme işe yaramadıysa yaprak yap
+        if (sol.isEmpty() || sag.isEmpty()) {
+            return new Node(enCokTekrarlanan(veri));
         }
 
-        node.left  = buildTree(leftData,  depth + 1);
-        node.right = buildTree(rightData, depth + 1);
-        return node;
+        // İç düğüm oluştur ve recursive devam et
+        Node dugum = new Node(enIyiOzellik, enIyiEsik);
+        dugum.solDal = agacOlustur(sol, derinlik + 1);
+        dugum.sagDal = agacOlustur(sag, derinlik + 1);
+        return dugum;
     }
 
-    // ── Ağaçta tahmin için gezinme ────────────────────────────────────
-    private String traverse(Node node, UserRecord user) {
-        if (node.isLeaf()) return node.leafLabel;
+    // ── Yardımcı Metodlar ─────────────────────────────────────────────────
 
-        double val = getFeatureValue(user, node.feature);
-        if (val <= node.threshold) {
-            return traverse(node.left, user);
-        } else {
-            return traverse(node.right, user);
-        }
-    }
-
-    // ── En iyi bölmeyi bul (Information Gain) ─────────────────────────
-    private BestSplit findBestSplit(List<UserRecord> data) {
-        String[] features = {"lineNetTotal", "brandCode", "gender", "clientCode"};
-        double bestGain = -1;
-        BestSplit best  = null;
-
-        for (String feature : features) {
-            List<Double> values = new ArrayList<>();
-            for (UserRecord r : data) values.add(getFeatureValue(r, feature));
-            Collections.sort(values);
-
-            // Eşik adayları: ardışık değerlerin ortası
-            Set<Double> thresholds = new LinkedHashSet<>();
-            for (int i = 0; i < values.size() - 1; i++) {
-                thresholds.add((values.get(i) + values.get(i + 1)) / 2.0);
-            }
-
-            for (double threshold : thresholds) {
-                List<UserRecord> left  = new ArrayList<>();
-                List<UserRecord> right = new ArrayList<>();
-                for (UserRecord r : data) {
-                    if (getFeatureValue(r, feature) <= threshold) left.add(r);
-                    else right.add(r);
-                }
-                if (left.isEmpty() || right.isEmpty()) continue;
-
-                double gain = informationGain(data, left, right);
-                if (gain > bestGain) {
-                    bestGain       = gain;
-                    best           = new BestSplit();
-                    best.feature   = feature;
-                    best.threshold = threshold;
-                }
-            }
-        }
-        return best;
-    }
-
-    // ── Information Gain hesaplama ─────────────────────────────────────
-    private double informationGain(List<UserRecord> parent,
-                                   List<UserRecord> left,
-                                   List<UserRecord> right) {
-        double parentEntropy = entropy(parent);
-        double n = parent.size();
-        double weightedEntropy = (left.size()  / n) * entropy(left)
-                               + (right.size() / n) * entropy(right);
-        return parentEntropy - weightedEntropy;
-    }
-
-    // ── Entropy hesaplama ──────────────────────────────────────────────
-    private double entropy(List<UserRecord> data) {
-        Map<String, Integer> counts = new HashMap<>();
-        for (UserRecord r : data) {
-            counts.merge(r.getCategory(), 1, Integer::sum);
-        }
-        double entropy = 0;
-        int n = data.size();
-        for (int count : counts.values()) {
-            double p = (double) count / n;
-            if (p > 0) entropy -= p * (Math.log(p) / Math.log(2));
-        }
-        return entropy;
-    }
-
-    // ── Yardımcı: özellik değeri döndür ───────────────────────────────
-    private double getFeatureValue(UserRecord r, String feature) {
-        switch (feature) {
-            case "lineNetTotal": return r.getLineNetTotal();
-            case "brandCode":    return r.getBrandCode();
-            case "clientCode":   return r.getClientCode();
-            case "gender":       return r.getGender().equalsIgnoreCase("E") ? 1.0 : 0.0;
-            default:             return 0.0;
+    private double ozellikAl(ProcessedRecord kayit, int index) {
+        switch (index) {
+            case 0: return kayit.getGenderEncoded();
+            case 1: return kayit.getLineNetNorm();
+            case 2: return kayit.getBrandCodeNorm();
+            default: return 0;
         }
     }
 
-    // ── Yardımcı: çoğunluk sınıfı ─────────────────────────────────────
-    private String majorityClass(List<UserRecord> data) {
-        Map<String, Integer> counts = new HashMap<>();
-        for (UserRecord r : data) counts.merge(r.getCategory(), 1, Integer::sum);
-        return Collections.max(counts.entrySet(), Map.Entry.comparingByValue()).getKey();
+    private double giniHesapla(List<ProcessedRecord> veri, int ozellik, double esik) {
+        List<ProcessedRecord> sol = new ArrayList<>();
+        List<ProcessedRecord> sag = new ArrayList<>();
+
+        for (ProcessedRecord kayit : veri) {
+            if (ozellikAl(kayit, ozellik) <= esik) sol.add(kayit);
+            else sag.add(kayit);
+        }
+
+        int toplam = veri.size();
+        double giniSol = giniImpurity(sol);
+        double giniSag = giniImpurity(sag);
+
+        return ((double) sol.size() / toplam) * giniSol +
+               ((double) sag.size() / toplam) * giniSag;
     }
 
-    // ── Yardımcı: hepsi aynı kategori mi? ─────────────────────────────
-    private boolean allSameCategory(List<UserRecord> data) {
-        String first = data.get(0).getCategory();
-        for (UserRecord r : data) {
-            if (!r.getCategory().equals(first)) return false;
+    private double giniImpurity(List<ProcessedRecord> veri) {
+        if (veri.isEmpty()) return 0;
+
+        Map<String, Integer> sayac = new HashMap<>();
+        for (ProcessedRecord kayit : veri) {
+            sayac.put(kayit.getCategory(), sayac.getOrDefault(kayit.getCategory(), 0) + 1);
+        }
+
+        double gini = 1.0;
+        for (int sayi : sayac.values()) {
+            double oran = (double) sayi / veri.size();
+            gini -= oran * oran;
+        }
+        return gini;
+    }
+
+    private boolean hepsiAyniKategori(List<ProcessedRecord> veri) {
+        String ilk = veri.get(0).getCategory();
+        for (ProcessedRecord kayit : veri) {
+            if (!kayit.getCategory().equals(ilk)) return false;
         }
         return true;
     }
 
-    // ── İç sınıf: en iyi bölme bilgisi ───────────────────────────────
-    private static class BestSplit {
-        String feature;
-        double threshold;
+    private String enCokTekrarlanan(List<ProcessedRecord> veri) {
+        if (veri.isEmpty()) return "";
+        Map<String, Integer> sayac = new HashMap<>();
+        for (ProcessedRecord kayit : veri) {
+            sayac.put(kayit.getCategory(), sayac.getOrDefault(kayit.getCategory(), 0) + 1);
+        }
+        return sayac.entrySet().stream()
+                .max(Map.Entry.comparingByValue())
+                .get().getKey();
     }
-
-    public void setMaxDepth(int maxDepth) { this.maxDepth = maxDepth; }
 }

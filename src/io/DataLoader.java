@@ -69,7 +69,12 @@ public class DataLoader {
                 }
 
                 try {
-                    int brandCode = Integer.parseInt(brandCodeStr);
+                    int brandCode;
+try {
+    brandCode = Integer.parseInt(brandCodeStr);
+} catch (NumberFormatException e) {
+    brandCode = Math.abs(brandCodeStr.hashCode()) % 1000;
+}
                     UserRecord kayit = new UserRecord(
                         clientCode, gender, lineNetTotal,
                         brandCode, brand, category

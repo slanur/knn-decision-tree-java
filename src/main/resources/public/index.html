@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Müşteri Tahmin Sistemi</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
+
+        header {
+            background: linear-gradient(135deg, #1e3a5f, #1e40af);
+            padding: 24px 40px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        header h1 { font-size: 1.6rem; font-weight: 700; }
+        header p  { font-size: 0.9rem; color: #93c5fd; margin-top: 4px; }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
+
+        /* Dosya Yükleme */
+        .yukle-card {
+            background: #1e293b;
+            border-radius: 16px;
+            padding: 28px;
+            border: 2px dashed #334155;
+            margin-bottom: 28px;
+            text-align: center;
+            transition: border-color 0.2s;
+        }
+        .yukle-card.aktif { border-color: #60a5fa; }
+        .yukle-card h2 { font-size: 1.1rem; margin-bottom: 8px; }
+        .yukle-card p  { font-size: 0.85rem; color: #94a3b8; margin-bottom: 20px; }
+        .yukle-input-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .dosya-input { display: none; }
+        .dosya-label {
+            padding: 10px 24px;
+            background: #1d4ed8;
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+        .dosya-label:hover { background: #1e40af; }
+        .dosya-adi {
+            font-size: 0.85rem;
+            color: #94a3b8;
+            min-width: 200px;
+        }
+        .btn-yukle {
+            padding: 10px 24px;
+            background: #059669;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+        .btn-yukle:hover { background: #047857; }
+        .btn-yukle:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .yukle-sonuc {
+            margin-top: 16px;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            display: none;
+        }
+        .yukle-sonuc.basari { background: rgba(5,150,105,0.15); color: #34d399; display: block; }
+        .yukle-sonuc.hata   { background: rgba(239,68,68,0.15);  color: #f87171; display: block; }
+
+        /* Bilgi Kartları */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 28px;
+        }
+        .info-card {
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #334155;
+            text-align: center;
+        }
+        .info-card .sayi   { font-size: 2rem; font-weight: 700; color: #60a5fa; }
+        .info-card .etiket { font-size: 0.85rem; color: #94a3b8; margin-top: 4px; }
+
+        /* Algoritma Panelleri */
+        .panel-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 28px;
+        }
+        .panel {
+            background: #1e293b;
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid #334155;
+        }
+        .panel-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .panel-icon {
+            width: 44px; height: 44px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.3rem;
+        }
+        .knn-icon { background: #1d4ed8; }
+        .dt-icon  { background: #065f46; }
+        .panel-title { font-size: 1.1rem; font-weight: 600; }
+        .panel-sub   { font-size: 0.8rem; color: #94a3b8; }
+
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; font-size: 0.85rem; color: #94a3b8; margin-bottom: 6px; }
+        .form-group input {
+            width: 100%;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 10px 14px;
+            color: #e2e8f0;
+            font-size: 0.95rem;
+        }
+        .form-group input:focus { outline: none; border-color: #60a5fa; }
+
+        .btn {
+            width: 100%; padding: 12px; border: none;
+            border-radius: 10px; font-size: 1rem;
+            font-weight: 600; cursor: pointer; transition: all 0.2s;
+        }
+        .btn-knn { background: #1d4ed8; color: white; }
+        .btn-knn:hover { background: #1e40af; }
+        .btn-dt  { background: #065f46; color: white; }
+        .btn-dt:hover  { background: #047857; }
+        .btn:disabled  { opacity: 0.5; cursor: not-allowed; }
+
+        .sonuc-card {
+            display: none;
+            margin-top: 16px;
+            background: #0f172a;
+            border-radius: 10px;
+            padding: 16px;
+            border: 1px solid #334155;
+        }
+        .sonuc-card.aktif { display: block; }
+        .sonuc-satir {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #1e293b;
+            font-size: 0.9rem;
+        }
+        .sonuc-satir:last-child { border-bottom: none; }
+        .sonuc-satir .deger { font-weight: 600; color: #60a5fa; }
+        .dogruluk-buyuk {
+            font-size: 2.5rem; font-weight: 700;
+            color: #34d399; text-align: center; padding: 12px 0;
+        }
+
+        /* Grafikler */
+        .grafik-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 28px;
+        }
+        .grafik-card {
+            background: #1e293b;
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid #334155;
+        }
+        .grafik-card h3 { font-size: 1rem; font-weight: 600; margin-bottom: 16px; color: #94a3b8; }
+
+        /* Confusion Matrix */
+        .matris-container {
+            background: #1e293b;
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid #334155;
+            margin-bottom: 28px;
+        }
+        .matris-container h3 { font-size: 1rem; font-weight: 600; margin-bottom: 16px; color: #94a3b8; }
+        .matris-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+        .matris-tab {
+            padding: 6px 16px; border-radius: 6px;
+            border: 1px solid #334155; background: transparent;
+            color: #94a3b8; cursor: pointer; font-size: 0.85rem;
+        }
+        .matris-tab.aktif { background: #1d4ed8; color: white; border-color: #1d4ed8; }
+        .matris-liste { max-height: 300px; overflow-y: auto; }
+        .matris-satir {
+            display: flex; justify-content: space-between;
+            align-items: center; padding: 8px 12px;
+            border-radius: 6px; margin-bottom: 4px; font-size: 0.85rem;
+        }
+        .matris-satir.dogru  { background: rgba(52,211,153,0.1); color: #34d399; }
+        .matris-satir.yanlis { background: rgba(248,113,113,0.1); color: #f87171; }
+        /* Model Seçim */
+.model-secim-card {
+    background: #1e293b;
+    border-radius: 16px;
+    padding: 24px;
+    border: 1px solid #334155;
+    margin-bottom: 28px;
+}
+.model-secim-card h2 { font-size: 1.1rem; font-weight: 600; margin-bottom: 16px; }
+.model-secim-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 16px;
+}
+.model-option { cursor: pointer; }
+.model-option input { display: none; }
+.model-option-icerik {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 16px;
+    border-radius: 12px;
+    border: 2px solid #334155;
+    transition: all 0.2s;
+    text-align: center;
+}
+.model-option input:checked + .model-option-icerik {
+    border-color: #60a5fa;
+    background: rgba(96,165,250,0.1);
+}
+.model-ikon    { font-size: 1.8rem; }
+.model-ad      { font-size: 0.95rem; font-weight: 600; }
+.model-aciklama { font-size: 0.78rem; color: #94a3b8; }
+.btn-calistir {
+    width: 100%;
+    padding: 12px;
+    background: linear-gradient(135deg, #1d4ed8, #065f46);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+.btn-calistir:hover { opacity: 0.9; }
+        .yukleniyor { text-align: center; padding: 20px; color: #94a3b8; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>🛒 Müşteri Tahmin Sistemi</h1>
+    <p>KNN ve Decision Tree Karşılaştırmalı Analiz — Kocaeli Satış Verisi 2017</p>
+</header>
+
+<div class="container">
+
+    <!-- Dosya Yükleme -->
+    <div class="yukle-card" id="yukleCard">
+        <h2>📂 Veri Seti Yükle</h2>
+        <p>MarketSalesKocaeli.xlsx veya uyumlu bir .xlsx dosyası seçin</p>
+        <div class="yukle-input-wrapper">
+            <label class="dosya-label" for="dosyaInput">📁 Dosya Seç</label>
+            <input type="file" id="dosyaInput" class="dosya-input" accept=".xlsx">
+            <span class="dosya-adi" id="dosyaAdi">Dosya seçilmedi</span>
+            <button class="btn-yukle" id="yukleBtn" onclick="veriYukle()" disabled>⬆ Yükle</button>
+        </div>
+        <div class="yukle-sonuc" id="yukleSonuc"></div>
+    </div>
+
+    <!-- Veri Bilgisi -->
+    <div class="info-grid">
+        <div class="info-card">
+            <div class="sayi" id="toplamKayit">—</div>
+            <div class="etiket">Toplam Kayıt</div>
+        </div>
+        <div class="info-card">
+            <div class="sayi" id="egitimKayit">—</div>
+            <div class="etiket">Eğitim Seti (%80)</div>
+        </div>
+        <div class="info-card">
+            <div class="sayi" id="testKayit">—</div>
+            <div class="etiket">Test Seti (%20)</div>
+        </div>
+    </div>
+
+    <!-- Model Seçim Alanı -->
+<div class="model-secim-card">
+    <h2>🤖 Model Seç</h2>
+    <div class="model-secim-grid">
+        <label class="model-option">
+            <input type="radio" name="model" value="knn" checked onchange="modelSecimDegisti()">
+            <div class="model-option-icerik">
+                <span class="model-ikon">🔵</span>
+                <span class="model-ad">KNN</span>
+                <span class="model-aciklama">K-En Yakın Komşu</span>
+            </div>
+        </label>
+        <label class="model-option">
+            <input type="radio" name="model" value="dt" onchange="modelSecimDegisti()">
+            <div class="model-option-icerik">
+                <span class="model-ikon">🌿</span>
+                <span class="model-ad">Decision Tree</span>
+                <span class="model-aciklama">Karar Ağacı</span>
+            </div>
+        </label>
+        <label class="model-option">
+            <input type="radio" name="model" value="ikisi" onchange="modelSecimDegisti()">
+            <div class="model-option-icerik">
+                <span class="model-ikon">⚡</span>
+                <span class="model-ad">İkisi Birden</span>
+                <span class="model-aciklama">Karşılaştırmalı Analiz</span>
+            </div>
+        </label>
+    </div>
+    <button class="btn-calistir" onclick="seciliModelleriCalistir()">▶ Seçili Modeli Çalıştır</button>
+</div>
+    <!-- Algoritma Panelleri -->
+    <div class="panel-grid">
+        <div class="panel">
+            <div class="panel-header">
+                <div class="panel-icon knn-icon">🔵</div>
+                <div>
+                    <div class="panel-title">K-En Yakın Komşu (KNN)</div>
+                    <div class="panel-sub">Mesafe tabanlı sınıflandırma</div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>K Değeri (Komşu Sayısı)</label>
+                <input type="number" id="kDegeri" value="5" min="1" max="20">
+            </div>
+            <button class="btn btn-knn" onclick="knnCalistir()">▶ KNN Çalıştır</button>
+            <div class="sonuc-card" id="knnSonuc">
+                <div class="dogruluk-buyuk" id="knnDogruluk">—</div>
+                <div class="sonuc-satir"><span>Doğru Tahmin</span><span class="deger" id="knnDogru">—</span></div>
+                <div class="sonuc-satir"><span>Test Kayıt Sayısı</span><span class="deger" id="knnToplam">—</span></div>
+                <div class="sonuc-satir"><span>Çalışma Süresi</span><span class="deger" id="knnSure">—</span></div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-header">
+                <div class="panel-icon dt-icon">🌿</div>
+                <div>
+                    <div class="panel-title">Karar Ağacı (Decision Tree)</div>
+                    <div class="panel-sub">Kural tabanlı sınıflandırma</div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Maksimum Derinlik</label>
+                <input type="number" id="maxDerinlik" value="10" min="1" max="30">
+            </div>
+            <button class="btn btn-dt" onclick="dtCalistir()">▶ Decision Tree Çalıştır</button>
+            <div class="sonuc-card" id="dtSonuc">
+                <div class="dogruluk-buyuk" id="dtDogruluk">—</div>
+                <div class="sonuc-satir"><span>Doğru Tahmin</span><span class="deger" id="dtDogru">—</span></div>
+                <div class="sonuc-satir"><span>Test Kayıt Sayısı</span><span class="deger" id="dtToplam">—</span></div>
+                <div class="sonuc-satir"><span>Çalışma Süresi</span><span class="deger" id="dtSure">—</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Grafikler -->
+    <div class="grafik-grid">
+        <div class="grafik-card">
+            <h3>📊 Doğruluk Karşılaştırması</h3>
+            <canvas id="dogrulukGrafik"></canvas>
+        </div>
+        <div class="grafik-card">
+            <h3>⚡ Hız Karşılaştırması (ms)</h3>
+            <canvas id="hizGrafik"></canvas>
+        </div>
+    </div>
+
+    <div class="grafik-grid">
+        <div class="grafik-card">
+            <h3>📂 KNN — Kategori Bazında Doğruluk</h3>
+            <canvas id="knnKategoriGrafik"></canvas>
+        </div>
+        <div class="grafik-card">
+            <h3>📂 Decision Tree — Kategori Bazında Doğruluk</h3>
+            <canvas id="dtKategoriGrafik"></canvas>
+        </div>
+    </div>
+
+    <!-- Confusion Matrix -->
+    <div class="matris-container">
+        <h3>🔢 Confusion Matrix</h3>
+        <div class="matris-tabs">
+            <button class="matris-tab aktif" onclick="matrisGoster('knn', this)">KNN</button>
+            <button class="matris-tab" onclick="matrisGoster('dt', this)">Decision Tree</button>
+        </div>
+        <div class="matris-liste" id="matrisListe">
+            <div class="yukleniyor">Önce veri yükleyin ve bir algoritma çalıştırın...</div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    let knnVeri = null;
+    let dtVeri  = null;
+    let dogrulukChart = null, hizChart = null;
+    let knnKategoriChart = null, dtKategoriChart = null;
+
+    // Dosya seçilince
+    document.getElementById('dosyaInput').addEventListener('change', function() {
+        const dosya = this.files[0];
+        if (dosya) {
+            document.getElementById('dosyaAdi').textContent = dosya.name;
+            document.getElementById('yukleBtn').disabled = false;
+        }
+    });
+
+    // Veri yükle
+    async function veriYukle() {
+        const dosya = document.getElementById('dosyaInput').files[0];
+        if (!dosya) return;
+
+        const btn = document.getElementById('yukleBtn');
+        btn.disabled = true;
+        btn.textContent = '⏳ Yükleniyor...';
+
+        const formData = new FormData();
+        formData.append('dosya', dosya);
+
+        try {
+            const res  = await fetch('/api/yukle', { method: 'POST', body: formData });
+            const data = await res.json();
+
+            const sonucDiv = document.getElementById('yukleSonuc');
+            if (data.hata) {
+                sonucDiv.className = 'yukle-sonuc hata';
+                sonucDiv.textContent = '❌ Hata: ' + data.hata;
+            } else {
+                sonucDiv.className = 'yukle-sonuc basari';
+                sonucDiv.textContent = `✅ Veri yüklendi! Toplam: ${data.toplamKayit} kayıt`;
+                document.getElementById('toplamKayit').textContent = data.toplamKayit;
+                document.getElementById('egitimKayit').textContent = data.egitimKayit;
+                document.getElementById('testKayit').textContent   = data.testKayit;
+                document.getElementById('yukleCard').classList.add('aktif');
+            }
+        } catch(e) {
+            document.getElementById('yukleSonuc').className = 'yukle-sonuc hata';
+            document.getElementById('yukleSonuc').textContent = '❌ Sunucuya bağlanılamadı';
+        }
+
+        btn.disabled = false;
+        btn.textContent = '⬆ Yükle';
+    }
+
+    async function knnCalistir() {
+        const k   = parseInt(document.getElementById('kDegeri').value);
+        const btn = document.querySelector('.btn-knn');
+        btn.disabled = true; btn.textContent = '⏳ Hesaplanıyor...';
+
+        try {
+            const res = await fetch('/api/knn', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ k })
+            });
+            knnVeri = await res.json();
+            if (knnVeri.hata) { alert(knnVeri.hata); return; }
+
+            document.getElementById('knnSonuc').classList.add('aktif');
+            document.getElementById('knnDogruluk').textContent = '%' + knnVeri.dogruluk;
+            document.getElementById('knnDogru').textContent    = knnVeri.dogru;
+            document.getElementById('knnToplam').textContent   = knnVeri.toplam;
+            document.getElementById('knnSure').textContent     = knnVeri.sure + ' ms';
+            grafikGuncelle();
+            matrisGoster('knn', document.querySelectorAll('.matris-tab')[0]);
+        } catch(e) { alert('Hata: ' + e.message); }
+
+        btn.disabled = false; btn.textContent = '▶ KNN Çalıştır';
+    }
+
+    async function dtCalistir() {
+        const maxDerinlik = parseInt(document.getElementById('maxDerinlik').value);
+        const btn = document.querySelector('.btn-dt');
+        btn.disabled = true; btn.textContent = '⏳ Hesaplanıyor...';
+
+        try {
+            const res = await fetch('/api/dt', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ maxDerinlik })
+            });
+            dtVeri = await res.json();
+            if (dtVeri.hata) { alert(dtVeri.hata); return; }
+
+            document.getElementById('dtSonuc').classList.add('aktif');
+            document.getElementById('dtDogruluk').textContent = '%' + dtVeri.dogruluk;
+            document.getElementById('dtDogru').textContent    = dtVeri.dogru;
+            document.getElementById('dtToplam').textContent   = dtVeri.toplam;
+            document.getElementById('dtSure').textContent     = dtVeri.sure + ' ms';
+            grafikGuncelle();
+        } catch(e) { alert('Hata: ' + e.message); }
+
+        btn.disabled = false; btn.textContent = '▶ Decision Tree Çalıştır';
+    }
+
+    function grafikGuncelle() {
+        const dogrulukCtx = document.getElementById('dogrulukGrafik').getContext('2d');
+        if (dogrulukChart) dogrulukChart.destroy();
+        dogrulukChart = new Chart(dogrulukCtx, {
+            type: 'bar',
+            data: {
+                labels: ['KNN', 'Decision Tree'],
+                datasets: [{ label: 'Doğruluk (%)',
+                    data: [knnVeri ? knnVeri.dogruluk : 0, dtVeri ? dtVeri.dogruluk : 0],
+                    backgroundColor: ['#1d4ed8', '#065f46'], borderRadius: 8 }]
+            },
+            options: { responsive: true, plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, max: 100,
+                    ticks: { color: '#94a3b8' }, grid: { color: '#1e293b' } },
+                    x: { ticks: { color: '#94a3b8' }, grid: { display: false } } } }
+        });
+
+        const hizCtx = document.getElementById('hizGrafik').getContext('2d');
+        if (hizChart) hizChart.destroy();
+        hizChart = new Chart(hizCtx, {
+            type: 'bar',
+            data: {
+                labels: ['KNN', 'Decision Tree'],
+                datasets: [{ label: 'Süre (ms)',
+                    data: [knnVeri ? knnVeri.sure : 0, dtVeri ? dtVeri.sure : 0],
+                    backgroundColor: ['#7c3aed', '#b45309'], borderRadius: 8 }]
+            },
+            options: { responsive: true, plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, ticks: { color: '#94a3b8' }, grid: { color: '#1e293b' } },
+                    x: { ticks: { color: '#94a3b8' }, grid: { display: false } } } }
+        });
+
+        if (knnVeri && knnVeri.kategoriDogruluk) {
+            const knnCtx = document.getElementById('knnKategoriGrafik').getContext('2d');
+            if (knnKategoriChart) knnKategoriChart.destroy();
+            knnKategoriChart = new Chart(knnCtx, {
+                type: 'bar',
+                data: { labels: Object.keys(knnVeri.kategoriDogruluk),
+                    datasets: [{ label: 'Doğruluk (%)',
+                        data: Object.values(knnVeri.kategoriDogruluk).map(v => Math.round(v * 10) / 10),
+                        backgroundColor: '#1d4ed8', borderRadius: 4 }] },
+                options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } },
+                    scales: { x: { beginAtZero: true, max: 100, ticks: { color: '#94a3b8' }, grid: { color: '#1e293b' } },
+                        y: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { display: false } } } }
+            });
+        }
+
+        if (dtVeri && dtVeri.kategoriDogruluk) {
+            const dtCtx = document.getElementById('dtKategoriGrafik').getContext('2d');
+            if (dtKategoriChart) dtKategoriChart.destroy();
+            dtKategoriChart = new Chart(dtCtx, {
+                type: 'bar',
+                data: { labels: Object.keys(dtVeri.kategoriDogruluk),
+                    datasets: [{ label: 'Doğruluk (%)',
+                        data: Object.values(dtVeri.kategoriDogruluk).map(v => Math.round(v * 10) / 10),
+                        backgroundColor: '#065f46', borderRadius: 4 }] },
+                options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } },
+                    scales: { x: { beginAtZero: true, max: 100, ticks: { color: '#94a3b8' }, grid: { color: '#1e293b' } },
+                        y: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { display: false } } } }
+            });
+        }
+    }
+
+    function matrisGoster(tip, clickedTab) {
+        document.querySelectorAll('.matris-tab').forEach(t => t.classList.remove('aktif'));
+        clickedTab.classList.add('aktif');
+        const veri  = tip === 'knn' ? knnVeri : dtVeri;
+        const liste = document.getElementById('matrisListe');
+        if (!veri) { liste.innerHTML = '<div class="yukleniyor">Önce bu algoritmayı çalıştırın...</div>'; return; }
+        let html = '';
+        for (const [gercek, tahminler] of Object.entries(veri.konfuzyonMatrisi)) {
+            for (const [tahmin, sayi] of Object.entries(tahminler)) {
+                const dogru = gercek === tahmin;
+                html += `<div class="matris-satir ${dogru ? 'dogru' : 'yanlis'}">
+                    <span>${dogru ? '✓' : '✗'} ${gercek} → ${tahmin}</span>
+                    <span>${sayi} kayıt</span></div>`;
+            }
+        }
+        liste.innerHTML = html;
+    }
+    function modelSecimDegisti() {
+    const secim = document.querySelector('input[name="model"]:checked').value;
+    const knnPanel = document.querySelector('.panel:first-child');
+    const dtPanel  = document.querySelector('.panel:last-child');
+
+    if (secim === 'knn') {
+        knnPanel.style.opacity = '1';
+        dtPanel.style.opacity  = '0.4';
+    } else if (secim === 'dt') {
+        knnPanel.style.opacity = '0.4';
+        dtPanel.style.opacity  = '1';
+    } else {
+        knnPanel.style.opacity = '1';
+        dtPanel.style.opacity  = '1';
+    }
+}
+
+async function seciliModelleriCalistir() {
+    const secim = document.querySelector('input[name="model"]:checked').value;
+    if (secim === 'knn') {
+        await knnCalistir();
+    } else if (secim === 'dt') {
+        await dtCalistir();
+    } else {
+        await knnCalistir();
+        await dtCalistir();
+    }
+}
+</script>
+</body>
+</html>

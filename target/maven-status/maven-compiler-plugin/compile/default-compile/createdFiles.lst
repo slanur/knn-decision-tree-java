@@ -1,6 +1,14 @@
 io/DataLoader.class
-model/UserRecord.class
+classifier/KNNClassifier.class
+classifier/DecisionTreeClassifier$Node.class
+classifier/IClassifier.class
+classifier/DecisionTreeClassifier.class
+WebServer.class
 Main.class
+classifier/KNNClassifier$KomsuBilgi.class
+evaluation/Evaluator.class
+classifier/BaseAlgorithm.class
 model/ProcessedRecord.class
 preprocessing/PreProcessor.class
 io/DataLoader$1.class
+model/UserRecord.class
