@@ -9,7 +9,7 @@ import java.util.Map;
 
 public class Evaluator {
 
-    // ── Doğruluk ve Süre Ölçümü ──────────────────────────────────────────
+    
     public void evaluate(BaseAlgorithm algoritma, List<ProcessedRecord> testData, String algoritmAdi) {
 
         long baslangic = System.currentTimeMillis();
@@ -31,10 +31,9 @@ public class Evaluator {
         System.out.println("Süre         : " + sure + " ms");
     }
 
-    // ── Confusion Matrix ──────────────────────────────────────────────────
+    
     public void confusionMatrix(BaseAlgorithm algoritma, List<ProcessedRecord> testData, String algoritmAdi) {
 
-        // Gerçek ve tahmin edilen kategorileri topla
         Map<String, Map<String, Integer>> matris = new HashMap<>();
 
         for (ProcessedRecord kayit : testData) {
@@ -60,7 +59,6 @@ public class Evaluator {
         }
     }
 
-    // ── İki Algoritmayı Karşılaştır ───────────────────────────────────────
     public void karsilastir(BaseAlgorithm alg1, BaseAlgorithm alg2,
                              List<ProcessedRecord> testData,
                              String ad1, String ad2) {
@@ -73,7 +71,7 @@ public class Evaluator {
         double dogruluk2 = alg2.calculateAccuracy(testData);
         long sure2 = System.currentTimeMillis() - bas2;
 
-        System.out.println("\n========== KARŞILAŞTIRMA ==========");
+        System.out.println("\nKARŞILAŞTIRMA");
         System.out.printf("%-25s %-15s %-15s%n", "Algoritma", "Doğruluk", "Süre");
         System.out.println("-------------------------------------------");
         System.out.printf("%-25s %%%s%-10s %s ms%n", ad1, String.format("%.2f", dogruluk1), "", sure1);

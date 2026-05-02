@@ -13,7 +13,7 @@ import java.util.List;
 
 public class DataLoader {
 
-    // Hücreden güvenli string oku
+    //string oku
     private String getString(Cell cell) {
         if (cell == null) return "";
         switch (cell.getCellType()) {
@@ -24,7 +24,7 @@ public class DataLoader {
         }
     }
 
-    // Hücreden güvenli double oku
+    //double oku
     private double getDouble(Cell cell) {
         if (cell == null) return -1;
         switch (cell.getCellType()) {
@@ -36,6 +36,7 @@ public class DataLoader {
         }
     }
 
+    //excel dosyasını okuyup UserRecord listesi döndüren metod
     public List<UserRecord> loadData(String dosyaYolu) {
 
         List<UserRecord> kayitlar = new ArrayList<>();
@@ -50,10 +51,10 @@ public class DataLoader {
 
             boolean ilkSatir = true;
             for (Row satir : sayfa) {
-                // Başlık satırını atla
+                //başlık satırını atla
                 if (ilkSatir) { ilkSatir = false; continue; }
 
-                // Sütunları oku
+                //sütunları oku
                 double clientCode   = getDouble(satir.getCell(9));
                 String gender       = getString(satir.getCell(17));
                 double lineNetTotal = getDouble(satir.getCell(7));
@@ -61,7 +62,7 @@ public class DataLoader {
                 String brand        = getString(satir.getCell(11));
                 String category     = getString(satir.getCell(12));
 
-                // Boş satırları atla
+                //boş satırları atla
                 if (clientCode == -1 || gender.isEmpty() ||
                     lineNetTotal == -1 || brandCodeStr.isEmpty() ||
                     brand.isEmpty() || category.isEmpty()) {

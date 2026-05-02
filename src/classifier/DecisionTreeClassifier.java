@@ -16,22 +16,21 @@ public class DecisionTreeClassifier extends BaseAlgorithm {
         this.maxDerinlik = maxDerinlik;
     }
 
-    // ── Node: Ağacın her düğümü ───────────────────────────────────────────
     private static class Node {
         boolean yaprakMi;
-        String kategori;      // Yaprak düğümde kategori
-        int ozellikIndex;     // Hangi özelliğe göre bölünüyor (0=gender, 1=lineNet, 2=brand)
-        double esik;          // Bölme eşiği
-        Node solDal;          // esik altı
-        Node sagDal;          // esik üstü
+        String kategori;     
+        int ozellikIndex;     
+        double esik;          
+        Node solDal;          
+        Node sagDal;          
 
-        // Yaprak düğüm
+        
         Node(String kategori) {
             this.yaprakMi = true;
             this.kategori = kategori;
         }
 
-        // İç düğüm
+
         Node(int ozellikIndex, double esik) {
             this.yaprakMi     = false;
             this.ozellikIndex = ozellikIndex;
@@ -39,14 +38,14 @@ public class DecisionTreeClassifier extends BaseAlgorithm {
         }
     }
 
-    // ── Train ─────────────────────────────────────────────────────────────
+    //train
     @Override
     public void train(List<ProcessedRecord> trainingData) {
         this.kok = agacOlustur(trainingData, 0);
         System.out.println("Decision Tree eğitildi. Eğitim verisi: " + trainingData.size() + " kayıt");
     }
 
-    // ── Predict ───────────────────────────────────────────────────────────
+    //predict
     @Override
     public String predict(ProcessedRecord kayit) {
         return dugumTahmin(kok, kayit);
@@ -63,20 +62,19 @@ public class DecisionTreeClassifier extends BaseAlgorithm {
         }
     }
 
-    // ── Ağaç Oluşturma (Recursive) ────────────────────────────────────────
+    //ağaç oluşturma(recursive)
     private Node agacOlustur(List<ProcessedRecord> veri, int derinlik) {
 
-        // Durum 1: Veri boşsa veya max derinliğe ulaşıldıysa yaprak yap
         if (veri.isEmpty() || derinlik >= maxDerinlik) {
             return new Node(enCokTekrarlanan(veri));
         }
 
-        // Durum 2: Tüm kayıtlar aynı kategorideyse yaprak yap
+        
         if (hepsiAyniKategori(veri)) {
             return new Node(veri.get(0).getCategory());
         }
 
-        // En iyi bölmeyi bul
+        
         int enIyiOzellik = -1;
         double enIyiEsik  = 0;
         double enIyiGini  = Double.MAX_VALUE;
@@ -93,7 +91,7 @@ public class DecisionTreeClassifier extends BaseAlgorithm {
             }
         }
 
-        // Veriyi böl
+       
         List<ProcessedRecord> sol = new ArrayList<>();
         List<ProcessedRecord> sag = new ArrayList<>();
         for (ProcessedRecord kayit : veri) {
@@ -104,19 +102,19 @@ public class DecisionTreeClassifier extends BaseAlgorithm {
             }
         }
 
-        // Bölme işe yaramadıysa yaprak yap
+        
         if (sol.isEmpty() || sag.isEmpty()) {
             return new Node(enCokTekrarlanan(veri));
         }
 
-        // İç düğüm oluştur ve recursive devam et
+        
         Node dugum = new Node(enIyiOzellik, enIyiEsik);
         dugum.solDal = agacOlustur(sol, derinlik + 1);
         dugum.sagDal = agacOlustur(sag, derinlik + 1);
         return dugum;
     }
 
-    // ── Yardımcı Metodlar ─────────────────────────────────────────────────
+    //yardımcı Metodlar
 
     private double ozellikAl(ProcessedRecord kayit, int index) {
         switch (index) {

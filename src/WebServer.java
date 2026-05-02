@@ -88,82 +88,102 @@ public class WebServer {
         });
 
         // ── KNN çalıştır ──────────────────────────────────────────────────
-        post("/api/knn", (req, res) -> {
-            res.type("application/json");
-            if (!veriYuklendi) return gson.toJson(Map.of("hata", "Önce veri yükleyin"));
+post("/api/knn", (req, res) -> {
+    res.type("application/json");
+    if (!veriYuklendi) return gson.toJson(Map.of("hata", "Önce veri yükleyin"));
 
-            Map<String, Object> body = gson.fromJson(req.body(), Map.class);
-            int k = ((Double) body.getOrDefault("k", 5.0)).intValue();
+    Map<String, Object> body = gson.fromJson(req.body(), Map.class);
+    int k = ((Double) body.getOrDefault("k", 5.0)).intValue();
 
-            KNNClassifier knn = new KNNClassifier(k);
-            knn.train(egitim);
+    KNNClassifier knn = new KNNClassifier(k);
+    knn.train(egitim);
 
-            long baslangic = System.currentTimeMillis();
-            int dogru = 0;
-            Map<String, Map<String, Integer>> matris = new HashMap<>();
+    // Bellek ölçümü başlangıç
+    Runtime runtime = Runtime.getRuntime();
+    runtime.gc();
+    long bellekOnce = runtime.totalMemory() - runtime.freeMemory();
 
-            for (ProcessedRecord kayit : test) {
-                String tahmin = knn.predict(kayit);
-                String gercek = kayit.getCategory();
-                if (tahmin.equals(gercek)) dogru++;
-                matris.putIfAbsent(gercek, new HashMap<>());
-                matris.get(gercek).put(tahmin, matris.get(gercek).getOrDefault(tahmin, 0) + 1);
-            }
+    long baslangic = System.currentTimeMillis();
+    int dogru = 0;
+    Map<String, Map<String, Integer>> matris = new HashMap<>();
 
-            long sure = System.currentTimeMillis() - baslangic;
-            double dogruluk = (double) dogru / test.size() * 100.0;
+    for (ProcessedRecord kayit : test) {
+        String tahmin = knn.predict(kayit);
+        String gercek = kayit.getCategory();
+        if (tahmin.equals(gercek)) dogru++;
+        matris.putIfAbsent(gercek, new HashMap<>());
+        matris.get(gercek).put(tahmin, matris.get(gercek).getOrDefault(tahmin, 0) + 1);
+    }
 
-            Map<String, Double> kategoriDogruluk = kategoriDogrulukHesapla(matris);
+    long sure = System.currentTimeMillis() - baslangic;
 
-            Map<String, Object> sonuc = new HashMap<>();
-            sonuc.put("algoritma",        "KNN (K=" + k + ")");
-            sonuc.put("dogruluk",         Math.round(dogruluk * 100.0) / 100.0);
-            sonuc.put("sure",             sure);
-            sonuc.put("dogru",            dogru);
-            sonuc.put("toplam",           test.size());
-            sonuc.put("konfuzyonMatrisi", matris);
-            sonuc.put("kategoriDogruluk", kategoriDogruluk);
-            return gson.toJson(sonuc);
-        });
+    // Bellek ölçümü bitiş
+    long bellekSonra = runtime.totalMemory() - runtime.freeMemory();
+    long bellekKullanimi = (bellekSonra - bellekOnce) / 1024; // KB cinsinden
+
+    double dogruluk = (double) dogru / test.size() * 100.0;
+    Map<String, Double> kategoriDogruluk = kategoriDogrulukHesapla(matris);
+
+    Map<String, Object> sonuc = new HashMap<>();
+    sonuc.put("algoritma",        "KNN (K=" + k + ")");
+    sonuc.put("dogruluk",         Math.round(dogruluk * 100.0) / 100.0);
+    sonuc.put("sure",             sure);
+    sonuc.put("dogru",            dogru);
+    sonuc.put("toplam",           test.size());
+    sonuc.put("bellek",           bellekKullanimi + " KB");
+    sonuc.put("konfuzyonMatrisi", matris);
+    sonuc.put("kategoriDogruluk", kategoriDogruluk);
+    return gson.toJson(sonuc);
+});
 
         // ── Decision Tree çalıştır ────────────────────────────────────────
-        post("/api/dt", (req, res) -> {
-            res.type("application/json");
-            if (!veriYuklendi) return gson.toJson(Map.of("hata", "Önce veri yükleyin"));
+post("/api/dt", (req, res) -> {
+    res.type("application/json");
+    if (!veriYuklendi) return gson.toJson(Map.of("hata", "Önce veri yükleyin"));
 
-            Map<String, Object> body = gson.fromJson(req.body(), Map.class);
-            int maxDerinlik = ((Double) body.getOrDefault("maxDerinlik", 10.0)).intValue();
+    Map<String, Object> body = gson.fromJson(req.body(), Map.class);
+    int maxDerinlik = ((Double) body.getOrDefault("maxDerinlik", 10.0)).intValue();
 
-            DecisionTreeClassifier dt = new DecisionTreeClassifier(maxDerinlik);
-            dt.train(egitim);
+    DecisionTreeClassifier dt = new DecisionTreeClassifier(maxDerinlik);
+    dt.train(egitim);
 
-            long baslangic = System.currentTimeMillis();
-            int dogru = 0;
-            Map<String, Map<String, Integer>> matris = new HashMap<>();
+    // Bellek ölçümü başlangıç
+    Runtime runtime = Runtime.getRuntime();
+    runtime.gc();
+    long bellekOnce = runtime.totalMemory() - runtime.freeMemory();
 
-            for (ProcessedRecord kayit : test) {
-                String tahmin = dt.predict(kayit);
-                String gercek = kayit.getCategory();
-                if (tahmin.equals(gercek)) dogru++;
-                matris.putIfAbsent(gercek, new HashMap<>());
-                matris.get(gercek).put(tahmin, matris.get(gercek).getOrDefault(tahmin, 0) + 1);
-            }
+    long baslangic = System.currentTimeMillis();
+    int dogru = 0;
+    Map<String, Map<String, Integer>> matris = new HashMap<>();
 
-            long sure = System.currentTimeMillis() - baslangic;
-            double dogruluk = (double) dogru / test.size() * 100.0;
+    for (ProcessedRecord kayit : test) {
+        String tahmin = dt.predict(kayit);
+        String gercek = kayit.getCategory();
+        if (tahmin.equals(gercek)) dogru++;
+        matris.putIfAbsent(gercek, new HashMap<>());
+        matris.get(gercek).put(tahmin, matris.get(gercek).getOrDefault(tahmin, 0) + 1);
+    }
 
-            Map<String, Double> kategoriDogruluk = kategoriDogrulukHesapla(matris);
+    long sure = System.currentTimeMillis() - baslangic;
 
-            Map<String, Object> sonuc = new HashMap<>();
-            sonuc.put("algoritma",        "Decision Tree (maxDerinlik=" + maxDerinlik + ")");
-            sonuc.put("dogruluk",         Math.round(dogruluk * 100.0) / 100.0);
-            sonuc.put("sure",             sure);
-            sonuc.put("dogru",            dogru);
-            sonuc.put("toplam",           test.size());
-            sonuc.put("konfuzyonMatrisi", matris);
-            sonuc.put("kategoriDogruluk", kategoriDogruluk);
-            return gson.toJson(sonuc);
-        });
+    // Bellek ölçümü bitiş
+    long bellekSonra = runtime.totalMemory() - runtime.freeMemory();
+    long bellekKullanimi = (bellekSonra - bellekOnce) / 1024; // KB cinsinden
+
+    double dogruluk = (double) dogru / test.size() * 100.0;
+    Map<String, Double> kategoriDogruluk = kategoriDogrulukHesapla(matris);
+
+    Map<String, Object> sonuc = new HashMap<>();
+    sonuc.put("algoritma",        "Decision Tree (maxDerinlik=" + maxDerinlik + ")");
+    sonuc.put("dogruluk",         Math.round(dogruluk * 100.0) / 100.0);
+    sonuc.put("sure",             sure);
+    sonuc.put("dogru",            dogru);
+    sonuc.put("toplam",           test.size());
+    sonuc.put("bellek",           bellekKullanimi + " KB");
+    sonuc.put("konfuzyonMatrisi", matris);
+    sonuc.put("kategoriDogruluk", kategoriDogruluk);
+    return gson.toJson(sonuc);
+});
 
         System.out.println("\n✅ Sunucu başlatıldı → http://localhost:4567");
     }

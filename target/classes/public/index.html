@@ -353,6 +353,10 @@
                 <div class="sonuc-satir"><span>Doğru Tahmin</span><span class="deger" id="knnDogru">—</span></div>
                 <div class="sonuc-satir"><span>Test Kayıt Sayısı</span><span class="deger" id="knnToplam">—</span></div>
                 <div class="sonuc-satir"><span>Çalışma Süresi</span><span class="deger" id="knnSure">—</span></div>
+                <div class="sonuc-satir">
+                    <span>Bellek Kullanımı</span>
+                    <span class="deger" id="knnBellek">—</span>
+                </div>
             </div>
         </div>
 
@@ -374,6 +378,10 @@
                 <div class="sonuc-satir"><span>Doğru Tahmin</span><span class="deger" id="dtDogru">—</span></div>
                 <div class="sonuc-satir"><span>Test Kayıt Sayısı</span><span class="deger" id="dtToplam">—</span></div>
                 <div class="sonuc-satir"><span>Çalışma Süresi</span><span class="deger" id="dtSure">—</span></div>
+                <div class="sonuc-satir">
+                    <span>Bellek Kullanımı</span>
+                    <span class="deger" id="dtBellek">—</span>
+                </div>
             </div>
         </div>
     </div>
@@ -480,7 +488,7 @@
             });
             knnVeri = await res.json();
             if (knnVeri.hata) { alert(knnVeri.hata); return; }
-
+            document.getElementById('knnBellek').textContent = knnVeri.bellek;
             document.getElementById('knnSonuc').classList.add('aktif');
             document.getElementById('knnDogruluk').textContent = '%' + knnVeri.dogruluk;
             document.getElementById('knnDogru').textContent    = knnVeri.dogru;
@@ -506,7 +514,7 @@
             });
             dtVeri = await res.json();
             if (dtVeri.hata) { alert(dtVeri.hata); return; }
-
+            document.getElementById('dtBellek').textContent = dtVeri.bellek;
             document.getElementById('dtSonuc').classList.add('aktif');
             document.getElementById('dtDogruluk').textContent = '%' + dtVeri.dogruluk;
             document.getElementById('dtDogru').textContent    = dtVeri.dogru;
@@ -538,17 +546,35 @@
         const hizCtx = document.getElementById('hizGrafik').getContext('2d');
         if (hizChart) hizChart.destroy();
         hizChart = new Chart(hizCtx, {
-            type: 'bar',
-            data: {
-                labels: ['KNN', 'Decision Tree'],
-                datasets: [{ label: 'Süre (ms)',
-                    data: [knnVeri ? knnVeri.sure : 0, dtVeri ? dtVeri.sure : 0],
-                    backgroundColor: ['#7c3aed', '#b45309'], borderRadius: 8 }]
+    type: 'bar',
+    data: {
+        labels: ['KNN', 'Decision Tree'],
+        datasets: [{
+            label: 'Süre (ms)',
+            data: [knnVeri ? knnVeri.sure : 0, dtVeri ? dtVeri.sure : 0],
+            backgroundColor: ['#7c3aed', '#b45309'],
+            borderRadius: 8
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+            y: {
+                type: 'logarithmic',
+                min: 0.1,
+                ticks: {
+                    color: '#94a3b8',
+                    callback: function(value) {
+                        return value + ' ms';
+                    }
+                },
+                grid: { color: '#1e293b' }
             },
-            options: { responsive: true, plugins: { legend: { display: false } },
-                scales: { y: { beginAtZero: true, ticks: { color: '#94a3b8' }, grid: { color: '#1e293b' } },
-                    x: { ticks: { color: '#94a3b8' }, grid: { display: false } } } }
-        });
+            x: { ticks: { color: '#94a3b8' }, grid: { display: false } }
+        }
+    }
+});
 
         if (knnVeri && knnVeri.kategoriDogruluk) {
             const knnCtx = document.getElementById('knnKategoriGrafik').getContext('2d');

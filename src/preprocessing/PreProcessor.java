@@ -8,30 +8,29 @@ import java.util.List;
 
 public class PreProcessor {
 
-    // Min-Max değerlerini sakla (KNN tahmin aşamasında da lazım olacak)
+    
     private double minLineNet, maxLineNet;
     private double minBrandCode, maxBrandCode;
 
-    // ── Ana Metod ─────────────────────────────────────────────────────────
-    // Ham UserRecord listesini alır, ProcessedRecord listesi döndürür
+    //UserRecord listesini alır, ProcessedRecord listesi döndürür
     public List<ProcessedRecord> process(List<UserRecord> kayitlar) {
 
-        // Adım 1: Min-Max değerlerini bul
+        //1-Min-Max değerlerini bul
         minMaxHesapla(kayitlar);
 
-        // Adım 2: Her kaydı dönüştür
+        //2-Her kaydı dönüştür
         List<ProcessedRecord> islenmisList = new ArrayList<>();
 
         for (UserRecord kayit : kayitlar) {
 
-            // Encoding: E→1.0, K→0.0
+            //Encoding: E-1.0 K-0.0
             double genderEncoded = kayit.getGender().equalsIgnoreCase("E") ? 1.0 : 0.0;
 
-            // Normalizasyon: (deger - min) / (max - min)
+            //Normalizasyon
             double lineNetNorm   = normalize(kayit.getLineNetTotal(), minLineNet, maxLineNet);
             double brandCodeNorm = normalize(kayit.getBrandCode(), minBrandCode, maxBrandCode);
 
-            // Yeni ProcessedRecord oluştur
+            //yeni ProcessedRecord oluştur
             ProcessedRecord islenmis = new ProcessedRecord(
                 genderEncoded,
                 lineNetNorm,
@@ -46,8 +45,8 @@ public class PreProcessor {
         return islenmisList;
     }
 
-    // ── Yardımcı Metodlar ─────────────────────────────────────────────────
 
+    //yardımcı metodlar
     // Tüm kayıtlar üzerinde min ve max değerlerini hesapla
     private void minMaxHesapla(List<UserRecord> kayitlar) {
         minLineNet   = Double.MAX_VALUE;
@@ -56,11 +55,9 @@ public class PreProcessor {
         maxBrandCode = Double.MIN_VALUE;
 
         for (UserRecord kayit : kayitlar) {
-            // lineNetTotal için
             if (kayit.getLineNetTotal() < minLineNet) minLineNet = kayit.getLineNetTotal();
             if (kayit.getLineNetTotal() > maxLineNet) maxLineNet = kayit.getLineNetTotal();
 
-            // brandCode için
             if (kayit.getBrandCode() < minBrandCode) minBrandCode = kayit.getBrandCode();
             if (kayit.getBrandCode() > maxBrandCode) maxBrandCode = kayit.getBrandCode();
         }
@@ -71,7 +68,7 @@ public class PreProcessor {
 
     // Min-Max normalizasyon formülü
     private double normalize(double deger, double min, double max) {
-        if (max == min) return 0.0; // Bölme hatası önlemi
+        if (max == min) return 0.0;
         return (deger - min) / (max - min);
     }
 }
